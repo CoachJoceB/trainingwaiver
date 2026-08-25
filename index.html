@@ -630,10 +630,12 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
   overlay.classList.add('active');
   document.body.classList.add('capturing');
 
+  let pdfBase64, fileSafeName, participantName;
+
+  // ---- Phase 1: render the filled form and build the PDF ----
   try {
-    // ---- Render the filled form to a canvas, then build a multi-page PDF ----
     const sheetEl = document.querySelector('.sheet');
-    const canvas = await html2canvas(sheetEl, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const canvas = await html2canvas(sheetEl, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'letter');
@@ -654,53 +656,59 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
       heightLeft -= pdfHeight;
     }
 
-    const pdfBase64 = pdf.output('datauristring');
-    const participantName = val('participantName') || 'participant';
-    const fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
+    pdfBase64 = pdf.output('datauristring');
+    participantName = val('participantName') || 'participant';
+    fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
 
     // Give the parent their own copy immediately too
     pdf.save('Waiver_' + fileSafeName + '.pdf');
-
-    const payload = {
-      pdfBase64: pdfBase64,
-      participantName: participantName,
-      age: val('age'),
-      dob: val('dob'),
-      grade: val('grade'),
-      school: val('school'),
-      parentEmail: val('parentEmail'),
-      cellPhone: val('cellPhone'),
-      emergencyName: val('emergencyName'),
-      emergencyPhone: val('emergencyPhone'),
-      medCondition: radioVal('medCondition'),
-      latexAllergy: radioVal('latexAllergy'),
-      mediaRelease: radioVal('mediaRelease')
-    };
-
-    const resp = await fetch(SUBMIT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight on Apps Script
-      body: JSON.stringify(payload)
-    });
-
-    let result = {};
-    try { result = await resp.json(); } catch (_) {}
-
-    overlay.classList.remove('active');
-    document.body.classList.remove('capturing');
-
-    if (result.status === 'ok') {
-      statusEl.className = 'status-msg success';
-      statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and Legacy Lab has been notified.';
-    } else {
-      statusEl.className = 'status-msg success';
-      statusEl.textContent = 'Your signed PDF was downloaded to your device. We had trouble confirming delivery to Legacy Lab — please also email the downloaded PDF to legacylabtech@gmail.com just in case.';
-    }
-  } catch (err) {
+  } catch (renderErr) {
     overlay.classList.remove('active');
     document.body.classList.remove('capturing');
     statusEl.className = 'status-msg error';
-    statusEl.textContent = 'Something went wrong generating your PDF (' + err.message + '). Please try again, or contact Legacy Lab directly.';
+    statusEl.textContent = 'Could not generate the PDF (' + renderErr.message + '). Please try again, or contact Legacy Lab directly.';
+    return;
+  }
+
+  // ---- Phase 2: send to Legacy Lab ----
+  // NOTE: Google Apps Script web apps respond via an internal redirect that
+  // browsers (Safari especially) can refuse to expose to fetch()'s normal
+  // "cors" mode, even though the request itself succeeds server-side. Using
+  // "no-cors" avoids that failure — we just can't read a response back, so
+  // we tell the parent it was sent rather than confirming a JSON reply.
+  const payload = {
+    pdfBase64: pdfBase64,
+    participantName: participantName,
+    age: val('age'),
+    dob: val('dob'),
+    grade: val('grade'),
+    school: val('school'),
+    parentEmail: val('parentEmail'),
+    cellPhone: val('cellPhone'),
+    emergencyName: val('emergencyName'),
+    emergencyPhone: val('emergencyPhone'),
+    medCondition: radioVal('medCondition'),
+    latexAllergy: radioVal('latexAllergy'),
+    mediaRelease: radioVal('mediaRelease')
+  };
+
+  try {
+    await fetch(SUBMIT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+
+    overlay.classList.remove('active');
+    document.body.classList.remove('capturing');
+    statusEl.className = 'status-msg success';
+    statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab.';
+  } catch (submitErr) {
+    overlay.classList.remove('active');
+    document.body.classList.remove('capturing');
+    statusEl.className = 'status-msg success';
+    statusEl.textContent = 'Your signed PDF was downloaded to your device, but we could not confirm it reached Legacy Lab (' + submitErr.message + '). Please also email the downloaded PDF to legacylabtech@gmail.com just in case.';
   }
 });
 </script>
