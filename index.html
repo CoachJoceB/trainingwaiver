@@ -729,6 +729,9 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
     paymentMethod: radioVal('paymentMethod')
   };
 
+  var appsScriptOk = false;
+  var formSubmitOk = false;
+
   try {
     await fetch(SUBMIT_URL, {
       method: 'POST',
@@ -736,16 +739,42 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     });
+    appsScriptOk = true;
+  } catch (submitErr) { /* fall through to FormSubmit */ }
 
-    overlay.classList.remove('active');
-    document.body.classList.remove('capturing');
-    statusEl.className = 'status-msg success';
+  try {
+    var fsData = {
+      formType: 'waiver-submission',
+      participantName: payload.participantName,
+      age: payload.age,
+      dob: payload.dob,
+      grade: payload.grade,
+      school: payload.school,
+      parentEmail: payload.parentEmail,
+      cellPhone: payload.cellPhone,
+      emergencyName: payload.emergencyName,
+      emergencyPhone: payload.emergencyPhone,
+      medCondition: payload.medCondition,
+      paymentMethod: payload.paymentMethod,
+      submittedAt: new Date().toISOString(),
+      _cc: 'coachjoceb@gmail.com',
+      _subject: 'New Waiver - ' + payload.participantName
+    };
+    var fsResp = await fetch('https://formsubmit.co/ajax/admin@legacylabinc.org', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(fsData)
+    });
+    if (fsResp.ok) formSubmitOk = true;
+  } catch (fsErr) { /* both failed */ }
+
+  overlay.classList.remove('active');
+  document.body.classList.remove('capturing');
+  statusEl.className = 'status-msg success';
+  if (appsScriptOk || formSubmitOk) {
     statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
-  } catch (submitErr) {
-    overlay.classList.remove('active');
-    document.body.classList.remove('capturing');
-    statusEl.className = 'status-msg success';
-    statusEl.textContent = 'Your signed PDF was downloaded to your device, but we could not confirm it reached Legacy Lab (' + submitErr.message + '). Please also email the downloaded PDF to legacylabtech@gmail.com just in case.';
+  } else {
+    statusEl.textContent = 'Your signed PDF was downloaded to your device, but we could not confirm it reached Legacy Lab. Please email the downloaded PDF to admin@legacylabinc.org just in case.';
   }
 });
 </script>
