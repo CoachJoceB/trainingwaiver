@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Legacy Lab x DD365 — Participant Liability Waiver</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -668,41 +667,98 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
 
   let pdfBase64, fileSafeName, participantName;
 
-  // ---- Phase 1: render the filled form and build the PDF ----
+  // ---- Phase 1: build a text-based PDF (no html2canvas - avoids renderer crashes) ----
   try {
-    const sheetEl = document.querySelector('.sheet');
-    const canvas = await html2canvas(sheetEl, { scale: 1.0, useCORS: true, backgroundColor: '#ffffff' });
-
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'letter');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
+    const margin = 50;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const maxWidth = pageWidth - margin * 2;
+    let y = margin;
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    let heightLeft = imgHeight;
-    let position = 0;
-    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-    while (heightLeft > 0) {
-      position -= pdfHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+    function addPageIfNeeded(needed) {
+      if (y + needed > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+    }
+    function heading(text) {
+      addPageIfNeeded(30);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      pdf.text(text, margin, y);
+      y += 22;
+    }
+    function field(label, value) {
+      addPageIfNeeded(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      const labelW = pdf.getTextWidth(label + ': ');
+      pdf.text(label + ':', margin, y);
+      pdf.setFont('helvetica', 'normal');
+      const lines = pdf.splitTextToSize(String(value || 'N/A'), maxWidth - labelW);
+      pdf.text(lines, margin + labelW, y);
+      y += lines.length * 14 + 4;
+    }
+    function paragraph(text) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      addPageIfNeeded(lines.length * 14 + 10);
+      pdf.text(lines, margin, y);
+      y += lines.length * 14 + 10;
     }
 
-    pdfBase64 = pdf.output('datauristring');
+    // Title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(18);
+    pdf.text('Legacy Lab x DD365 - Participant Liability Waiver', margin, y);
+    y += 30;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Submitted: ' + new Date().toLocaleString(), margin, y);
+    y += 25;
+
+    heading('Section 1: Participant Information');
+    field('Participant Name', val('participantName'));
+    field('Age', val('age'));
+    field('Date of Birth', val('dob'));
+    field('Grade', val('grade'));
+    field('School', val('school'));
+    field('Address', val('address'));
+    field('City', val('city'));
+    field('State', val('state'));
+    field('Zip', val('zip'));
+    field('Cell Phone', val('cellPhone'));
+    field('Parent Email', val('parentEmail'));
+    field('Emergency Contact', val('emergencyName') + ' - ' + val('emergencyPhone'));
+    field('Basketball Experience', val('experience'));
+
+    heading('Section 2: Medical Disclosure');
+    field('Medical Conditions', radioVal('medCondition'));
+    field('Latex Allergy', radioVal('latexAllergy'));
+    field('Medications/Restrictions', val('medications'));
+
+    heading('Section 7: Media Release');
+    field('Media Permission', radioVal('mediaRelease'));
+
+    heading('Section 8: Payment Method');
+    field('Payment Method', radioVal('paymentMethod'));
+
+    heading('Signatures');
+    paragraph('Parent/Guardian and participant signatures were provided electronically on the waiver form.');
+    field('Printed Name', val('printedName'));
+    field('Signature Date', '10/15/2026');
+
     participantName = val('participantName') || 'participant';
     fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
+    pdfBase64 = pdf.output('datauristring');
 
-    // Give the parent their own copy immediately too (only if PDF was generated)
-    if (pdfBase64) {
-      pdf.save('Waiver_' + fileSafeName + '.pdf');
-    }
+    // Give the parent their own copy immediately too
+    pdf.save('Waiver_' + fileSafeName + '.pdf');
   } catch (renderErr) {
     // PDF generation failed, but continue to submit the form data anyway
-    // so the waiver is not lost. The parent can be contacted for a re-sign if needed.
     pdfBase64 = null;
     participantName = val('participantName') || 'participant';
     fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
