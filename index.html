@@ -764,79 +764,60 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
     fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
   }
 
-  // ---- Phase 2: send to Legacy Lab ----
-  // NOTE: Google Apps Script web apps respond via an internal redirect that
-  // browsers (Safari especially) can refuse to expose to fetch()'s normal
-  // "cors" mode, even though the request itself succeeds server-side. Using
-  // "no-cors" avoids that failure — we just can't read a response back, so
-  // we tell the parent it was sent rather than confirming a JSON reply.
-  const payload = {
-    pdfBase64: pdfBase64,
-    participantName: participantName,
-    age: val('age'),
-    dob: val('dob'),
-    grade: val('grade'),
-    school: val('school'),
-    parentEmail: val('parentEmail'),
-    cellPhone: val('cellPhone'),
-    emergencyName: val('emergencyName'),
-    emergencyPhone: val('emergencyPhone'),
-    medCondition: radioVal('medCondition'),
-    latexAllergy: radioVal('latexAllergy'),
-    mediaRelease: radioVal('mediaRelease'),
-    paymentMethod: radioVal('paymentMethod')
-  };
-
-  var appsScriptOk = false;
-  var formSubmitOk = false;
+  // ---- Phase 2: send to Supabase ----
+  var supabaseOk = false;
+  var SUPABASE_URL = "https://gwahlqvngjfhslqqprzl.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3YWhscXZuZ2pmaHNscXFwcnpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNDU5NzIsImV4cCI6MjEwMjcyMTk3Mn0.bx2skjuZUNVXVplQNg-OaleXVYQ8D6R2Ej6xr1rBZYk";
 
   try {
-    await fetch(SUBMIT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    appsScriptOk = true;
-  } catch (submitErr) { /* fall through to FormSubmit */ }
-
-  try {
-    var fsData = {
-      formType: 'waiver-submission',
-      participantName: payload.participantName,
-      age: payload.age,
-      dob: payload.dob,
-      grade: payload.grade,
-      school: payload.school,
-      parentEmail: payload.parentEmail,
-      cellPhone: payload.cellPhone,
-      emergencyName: payload.emergencyName,
-      emergencyPhone: payload.emergencyPhone,
-      medCondition: payload.medCondition,
-      paymentMethod: payload.paymentMethod,
-      submittedAt: new Date().toISOString(),
-      _cc: 'coachjoceb@gmail.com',
-      _subject: 'New Waiver - ' + payload.participantName
+    var sbPayload = {
+      participant_name: participantName,
+      age: val('age'),
+      dob: val('dob'),
+      grade: val('grade'),
+      school: val('school'),
+      address: val('address'),
+      city: val('city'),
+      state: val('state'),
+      zip: val('zip'),
+      cell_phone: val('cellPhone'),
+      parent_email: val('parentEmail'),
+      parent_name: val('parentName'),
+      emergency_name: val('emergencyName'),
+      emergency_phone: val('emergencyPhone'),
+      experience: val('experience'),
+      med_condition: radioVal('medCondition'),
+      latex_allergy: radioVal('latexAllergy'),
+      medications: val('medications'),
+      media_release: radioVal('mediaRelease'),
+      payment_method: radioVal('paymentMethod'),
+      printed_name: val('printedName'),
+      pdf_base64: pdfBase64
     };
-    var fsResp = await fetch('https://formsubmit.co/ajax/admin@legacylabinc.org', {
+    var sbResp = await fetch(SUPABASE_URL + '/rest/v1/waiver_submissions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(fsData)
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(sbPayload)
     });
-    if (fsResp.ok) formSubmitOk = true;
-  } catch (fsErr) { /* both failed */ }
+    if (sbResp.ok) supabaseOk = true;
+  } catch (sbErr) { /* submission failed */ }
 
   overlay.classList.remove('active');
   document.body.classList.remove('capturing');
   statusEl.className = 'status-msg success';
-  if (appsScriptOk || formSubmitOk) {
+  if (supabaseOk) {
     if (pdfBase64) {
       statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
     } else {
       statusEl.textContent = 'Submitted! Your waiver information has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
     }
   } else {
-    statusEl.textContent = 'We could not confirm your waiver reached Legacy Lab. Please contact us directly at admin@legacylabinc.org to confirm.';
+    statusEl.textContent = 'We could not save your waiver. Please try again, or contact us directly at admin@legacylabinc.org.';
   }
 });
 </script>
