@@ -533,6 +533,18 @@
     <input type="date" id="sig3Date" required>
   </div>
 
+  <!-- PAYMENT METHOD -->
+  <div class="section-header">PAYMENT METHOD</div>
+  <div class="field-group" style="margin-bottom: 16px;">
+    <label style="font-weight: bold; font-size: 12.5px; display: block; margin-bottom: 8px;">How are you paying? <span class="required-star">*</span></label>
+    <label style="display: block; margin-bottom: 8px; font-weight: normal;">
+      <input type="radio" name="paymentMethod" value="site" required> Paying via this site (card)
+    </label>
+    <label style="display: block; margin-bottom: 8px; font-weight: normal;">
+      <input type="radio" name="paymentMethod" value="stepup" required> Step Up for Students
+    </label>
+  </div>
+
   <div class="submit-bar">
     <button type="submit" id="submitBtn">Complete &amp; Download Signed PDF</button>
     <div id="statusMsg" class="status-msg"></div>
@@ -713,7 +725,8 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
     emergencyPhone: val('emergencyPhone'),
     medCondition: radioVal('medCondition'),
     latexAllergy: radioVal('latexAllergy'),
-    mediaRelease: radioVal('mediaRelease')
+    mediaRelease: radioVal('mediaRelease'),
+    paymentMethod: radioVal('paymentMethod')
   };
 
   try {
