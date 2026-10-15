@@ -200,6 +200,10 @@
 
   <form id="waiverForm">
 
+  <div style="background:#1a2e1a;border:1px solid #4caf50;border-radius:8px;padding:12px 16px;margin-bottom:18px;color:#e8f5e9;font-size:14px;line-height:1.5;">
+    <strong>Already completed your waiver?</strong> You are all set for Friday 5:30pm training at 3920 W Navy Blvd. No need to fill this out again. New here? Please complete the waiver below.
+  </div>
+
   <!-- SECTION 1 -->
   <div class="section-header">SECTION 1 — PARTICIPANT INFORMATION</div>
 
@@ -703,7 +707,7 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
     overlay.classList.remove('active');
     document.body.classList.remove('capturing');
     statusEl.className = 'status-msg success';
-    statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab.';
+    statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
   } catch (submitErr) {
     overlay.classList.remove('active');
     document.body.classList.remove('capturing');
