@@ -200,9 +200,29 @@
 
   <form id="waiverForm">
 
-  <div style="background:#1a2e1a;border:1px solid #4caf50;border-radius:8px;padding:12px 16px;margin-bottom:18px;color:#e8f5e9;font-size:14px;line-height:1.5;">
+  <div id="planBanner" style="background:#1a2e1a;border:1px solid #4caf50;border-radius:8px;padding:12px 16px;margin-bottom:18px;color:#e8f5e9;font-size:14px;line-height:1.5;">
     <strong>Already completed your waiver?</strong> You are all set for Friday 5:30pm training at 3920 W Navy Blvd. No need to fill this out again. New here? Please complete the waiver below.
   </div>
+  <script>
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var plan = params.get('plan');
+    var banner = document.getElementById('planBanner');
+    if (!banner) return;
+    var msgs = {
+      free: '<strong>Welcome to your FREE session!</strong> Complete this waiver and you are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Already done one? You are all set, no need to fill this out again.',
+      monthly: '<strong>Monthly Membership confirmed!</strong> Complete this waiver and you are on the list for Friday 5:30pm training every week. Already done one? You are all set, no need to fill this out again.',
+      dropin: '<strong>Drop-In confirmed!</strong> Complete this waiver and you are booked for this Friday 5:30pm training at 3920 W Navy Blvd. Already done one? You are all set, no need to fill this out again.'
+    };
+    if (plan && msgs[plan]) banner.innerHTML = msgs[plan];
+    // Prefill fields from URL params if present
+    var prefill = { parentEmail: 'parentEmail', participantName: 'participantName', cellPhone: 'cellPhone', age: 'age' };
+    for (var key in prefill) {
+      var val = params.get(key);
+      if (val) { var el = document.getElementById(prefill[key]); if (el) el.value = decodeURIComponent(val); }
+    }
+  })();
+  </script>
 
   <!-- SECTION 1 -->
   <div class="section-header">SECTION 1 — PARTICIPANT INFORMATION</div>
