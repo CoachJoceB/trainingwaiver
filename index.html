@@ -671,7 +671,7 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
   // ---- Phase 1: render the filled form and build the PDF ----
   try {
     const sheetEl = document.querySelector('.sheet');
-    const canvas = await html2canvas(sheetEl, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
+    const canvas = await html2canvas(sheetEl, { scale: 1.0, useCORS: true, backgroundColor: '#ffffff' });
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'pt', 'letter');
@@ -680,15 +680,15 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
     const imgWidth = pdfWidth;
     const imgHeight = canvas.height * imgWidth / canvas.width;
 
-    const imgData = canvas.toDataURL('image/png');
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
     let heightLeft = imgHeight;
     let position = 0;
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
     heightLeft -= pdfHeight;
     while (heightLeft > 0) {
       position -= pdfHeight;
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
     }
 
@@ -696,14 +696,16 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
     participantName = val('participantName') || 'participant';
     fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
 
-    // Give the parent their own copy immediately too
-    pdf.save('Waiver_' + fileSafeName + '.pdf');
+    // Give the parent their own copy immediately too (only if PDF was generated)
+    if (pdfBase64) {
+      pdf.save('Waiver_' + fileSafeName + '.pdf');
+    }
   } catch (renderErr) {
-    overlay.classList.remove('active');
-    document.body.classList.remove('capturing');
-    statusEl.className = 'status-msg error';
-    statusEl.textContent = 'Could not generate the PDF (' + renderErr.message + '). Please try again, or contact Legacy Lab directly.';
-    return;
+    // PDF generation failed, but continue to submit the form data anyway
+    // so the waiver is not lost. The parent can be contacted for a re-sign if needed.
+    pdfBase64 = null;
+    participantName = val('participantName') || 'participant';
+    fileSafeName = participantName.replace(/[^a-z0-9]+/gi, '_');
   }
 
   // ---- Phase 2: send to Legacy Lab ----
@@ -772,9 +774,13 @@ document.getElementById('waiverForm').addEventListener('submit', async function(
   document.body.classList.remove('capturing');
   statusEl.className = 'status-msg success';
   if (appsScriptOk || formSubmitOk) {
-    statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
+    if (pdfBase64) {
+      statusEl.textContent = 'Submitted! A signed copy has been downloaded to your device, and it has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
+    } else {
+      statusEl.textContent = 'Submitted! Your waiver information has been sent to Legacy Lab. You are confirmed for Friday 5:30pm training at 3920 W Navy Blvd. Watch your email for confirmation details.';
+    }
   } else {
-    statusEl.textContent = 'Your signed PDF was downloaded to your device, but we could not confirm it reached Legacy Lab. Please email the downloaded PDF to admin@legacylabinc.org just in case.';
+    statusEl.textContent = 'We could not confirm your waiver reached Legacy Lab. Please contact us directly at admin@legacylabinc.org to confirm.';
   }
 });
 </script>
